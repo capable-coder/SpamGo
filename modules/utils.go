@@ -10,7 +10,7 @@ import (
 
 var IsBotMode bool
 
-// Reply sends an HTML reply with flood wait handling (max 3 retries)
+// Reply sends a reply with flood wait handling (max 3 retries)
 func Reply(m *telegram.NewMessage, text string) (*telegram.NewMessage, error) {
 	retries := 0
 	for retries < 3 {
@@ -39,7 +39,7 @@ func Reply(m *telegram.NewMessage, text string) (*telegram.NewMessage, error) {
 	return nil, fmt.Errorf("reply failed after retries")
 }
 
-// GetArgs returns all text after the first word (the command itself)
+// GetArgs returns everything after the first word/command
 func GetArgs(m *telegram.NewMessage) string {
 	text := m.Text()
 	if idx := findSpace(text); idx != -1 {
@@ -57,35 +57,9 @@ func findSpace(s string) int {
 	return -1
 }
 
-// extractFloodWait parses wait seconds from a FLOOD_WAIT error string
+// extractFloodWait parses the wait seconds from a FLOOD_WAIT error string
 func extractFloodWait(errText string) int {
 	var wait int
 	_, _ = fmt.Sscanf(errText, "FLOOD_WAIT_%d", &wait)
 	return wait
-}
-
-// getReplyMsgID returns the replied-to message ID directly from the message
-// object without any network call.
-// GetReplyMessage() does a network fetch which can return nil — this is the
-// root cause of reply not working. We read ReplyTo from the raw message instead.
-func getReplyMsgID(m *telegram.NewMessage) int32 {
-	if !m.IsReply() {
-		return 0
-	}
-	// m.Message is the raw *tg.Message object — ReplyTo holds the header
-	// which contains the replied-to message ID without a network call
-	if msg := m.Message; msg != nil {
-		if replyTo := msg.ReplyTo; replyTo != nil {
-			switch r := replyTo.(type) {
-			case *telegram.MessageReplyHeader:
-				return r.ReplyToMsgID
-			}
-		}
-	}
-	// Fallback: try network fetch if struct access didn't work
-	replyMsg, err := m.GetReplyMessage()
-	if err == nil && replyMsg != nil {
-		return int32(replyMsg.ID)
-	}
-	return 0
 }
