@@ -19,7 +19,7 @@ import (
 */
 
 // ─────────────────────────────────────────────
-// Active Raid Tracker
+// Active Raid Tracker — used by stopraid
 // ─────────────────────────────────────────────
 
 var (
@@ -49,47 +49,41 @@ func isRaidActive(chatID int64) bool {
 }
 
 // ─────────────────────────────────────────────
-// HANDLERS
+// Normal Raid Handlers
 // ─────────────────────────────────────────────
 
 func raidHandler(m *telegram.NewMessage) error {
 	return genericRaid(m, config.RAID, "raid", 700*time.Millisecond)
 }
-
 func hraidHandler(m *telegram.NewMessage) error {
 	return genericRaid(m, config.HRAID, "hraid", 700*time.Millisecond)
 }
-
 func eraidHandler(m *telegram.NewMessage) error {
 	return genericRaid(m, config.ERAID, "eraid", 700*time.Millisecond)
 }
-
 func punraidHandler(m *telegram.NewMessage) error {
 	return genericRaid(m, config.PUNRAID, "punraid", 700*time.Millisecond)
 }
 
 // ─────────────────────────────────────────────
-// Reply Raid Handlers
+// Reply Raid Handlers (watcher mode)
 // ─────────────────────────────────────────────
 
 func replyRaidHandler(m *telegram.NewMessage) error {
-	return genericReplyRaid(m, config.RAID, "raid", 700*time.Millisecond)
+	return startReplyRaidWatcher(m, config.RAID, "raid")
 }
-
 func hreplyRaidHandler(m *telegram.NewMessage) error {
-	return genericReplyRaid(m, config.HRAID, "hraid", 700*time.Millisecond)
+	return startReplyRaidWatcher(m, config.HRAID, "hraid")
 }
-
 func ereplyRaidHandler(m *telegram.NewMessage) error {
-	return genericReplyRaid(m, config.ERAID, "eraid", 700*time.Millisecond)
+	return startReplyRaidWatcher(m, config.ERAID, "eraid")
 }
-
 func preplyRaidHandler(m *telegram.NewMessage) error {
-	return genericReplyRaid(m, config.PUNRAID, "punraid", 700*time.Millisecond)
+	return startReplyRaidWatcher(m, config.PUNRAID, "punraid")
 }
 
 // ─────────────────────────────────────────────
-// STOP RAID
+// .stopraid — stops all raids, watchers, shayari
 // ─────────────────────────────────────────────
 
 func stopRaidHandler(m *telegram.NewMessage) error {
@@ -105,83 +99,52 @@ func stopRaidHandler(m *telegram.NewMessage) error {
 	replyRaidWatchersMu.Unlock()
 
 	database.DeleteRaid(chatID)
-
 	setShayariStopped(chatID)
 
 	_, _ = m.Delete()
-
 	Reply(m, "🛑 <b>ᴀʟʟ ʀᴀɪᴅs sᴛᴏᴘᴘᴇᴅ!</b>")
-
 	return nil
 }
 
 // ─────────────────────────────────────────────
-// FLOOD WAIT
+// Flood Wait Helper
 // ─────────────────────────────────────────────
 
 func handleFlood(err error) bool {
-
 	if err == nil {
 		return false
 	}
-
 	errText := strings.ToUpper(err.Error())
-
 	if strings.Contains(errText, "FLOOD_WAIT") {
-
 		var wait int
-
 		fmt.Sscanf(errText, "FLOOD_WAIT_%d", &wait)
-
 		if wait <= 0 {
 			wait = 5
 		}
-
 		time.Sleep(time.Duration(wait+1) * time.Second)
-
 		return true
 	}
-
 	return false
 }
 
 // ─────────────────────────────────────────────
-// GENERIC RAID
-// FIXED REPLY SUPPORT
+// Generic Normal Raid
+// FIX: replyToID read from message struct directly (no network call)
+// GetReplyMessage() was returning nil intermittently — this caused
+// all raid messages to send without reply even when replying to a message
 // ─────────────────────────────────────────────
 
-func genericRaid(
-	m *telegram.NewMessage,
-	raidList []string,
-	raidType string,
-	delay time.Duration,
-) error {
-
+func genericRaid(m *telegram.NewMessage, raidList []string, raidType string, delay time.Duration) error {
 	args := GetArgs(m)
-
 	var count int
-
 	fmt.Sscanf(args, "%d", &count)
-
 	if count < 1 {
 		Reply(m, "❌ ᴄᴏᴜɴᴛ ᴍᴜsᴛ ʙᴇ ᴀᴛ ʟᴇᴀsᴛ 1.")
 		return nil
 	}
 
-	// ───── FIXED REPLY ID ─────
-
-	var replyToID int32
-
-	if m.IsReply() {
-
-		replyMsg, err := m.GetReplyMessage()
-
-		if err == nil && replyMsg != nil {
-			replyToID = int32(replyMsg.ID)
-		}
-	}
-
-	// ──────────────────────────
+	// Read reply ID directly from message struct — no network call needed
+	replyToID := getReplyMsgID(m)
 
 	database.SaveRaid(database.RaidSession{
 		ChatID:    m.ChatID(),
@@ -191,9 +154,7 @@ func genericRaid(
 	})
 
 	_, _ = m.Delete()
-
 	setRaidActive(m.ChatID())
-
 	defer func() {
 		setRaidStopped(m.ChatID())
 		database.DeleteRaid(m.ChatID())
@@ -202,42 +163,23 @@ func genericRaid(
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := 0; i < count; i++ {
-
 		if !isRaidActive(m.ChatID()) {
 			break
 		}
-
 		text := raidList[rng.Intn(len(raidList))]
-
-		opts := &telegram.SendOptions{
-			ParseMode: telegram.HTML,
-		}
-
-		// ───── FIXED REPLY ─────
-
+		opts := &telegram.SendOptions{ParseMode: telegram.HTML}
 		if replyToID > 0 {
 			opts.ReplyID = replyToID
 		}
-
-		// ───────────────────────
-
-		_, err := m.Client.SendMessage(
-			m.ChatID(),
-			text,
-			opts,
-		)
-
+		_, err := m.Client.SendMessage(m.ChatID(), text, opts)
 		if err != nil {
-
 			if handleFlood(err) {
 				i--
 				continue
 			}
-
 			time.Sleep(2 * time.Second)
 			continue
 		}
-
 		time.Sleep(delay)
 	}
 
@@ -245,196 +187,185 @@ func genericRaid(
 }
 
 // ─────────────────────────────────────────────
-// GENERIC REPLY RAID
-// ALWAYS REPLIES TO TARGET MESSAGE
+// ReplyRaid Watcher
+// Waits for target user to send a message,
+// sends one random raid reply, then stops itself
 // ─────────────────────────────────────────────
 
-func genericReplyRaid(
-	m *telegram.NewMessage,
-	raidList []string,
-	raidType string,
-	delay time.Duration,
-) error {
-
+func startReplyRaidWatcher(m *telegram.NewMessage, raidList []string, raidType string) error {
 	if !m.IsReply() {
-
-		Reply(
-			m,
-			"↩️ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴜsᴇʀ ᴍᴇssᴀɢᴇ ꜰɪʀsᴛ.",
-		)
-
+		Reply(m, "↩️ ʀᴇᴘʟʏ ᴛᴏ ᴛʜᴇ ᴛᴀʀɢᴇᴛ ᴜsᴇʀ's ᴍᴇssᴀɢᴇ ꜰɪʀsᴛ.")
 		return nil
 	}
 
-	args := GetArgs(m)
-
-	var count int
-
-	fmt.Sscanf(args, "%d", &count)
-
-	if count < 1 {
-		count = 1
+	// Get target user ID from message struct — no network call
+	replyToID := getReplyMsgID(m)
+	if replyToID == 0 {
+		Reply(m, "❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ʀᴇᴀᴅ ʀᴇᴘʟɪᴇᴅ ᴍᴇssᴀɢᴇ.")
+		return nil
 	}
 
+	// Still need GetReplyMessage here to get senderID of the target
 	replyMsg, err := m.GetReplyMessage()
-
 	if err != nil || replyMsg == nil {
-
-		Reply(
-			m,
-			"❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ɢᴇᴛ ʀᴇᴘʟɪᴇᴅ ᴍᴇssᴀɢᴇ.",
-		)
-
+		Reply(m, "❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ɢᴇᴛ ʀᴇᴘʟɪᴇᴅ ᴍᴇssᴀɢᴇ.")
 		return nil
 	}
 
-	replyToID := int32(replyMsg.ID)
+	targetUserID := replyMsg.SenderID()
+	chatID := m.ChatID()
+
+	replyRaidWatchersMu.Lock()
+	if cancel, exists := replyRaidWatchers[chatID]; exists {
+		cancel()
+		delete(replyRaidWatchers, chatID)
+	}
+	stopped := false
+	replyRaidWatchers[chatID] = func() { stopped = true }
+	_ = stopped
+	replyRaidWatchersMu.Unlock()
 
 	database.SaveRaid(database.RaidSession{
-		ChatID:    m.ChatID(),
-		ReplyToID: replyToID,
-		RaidType:  raidType,
-		Count:     count,
+		ChatID:       chatID,
+		ReplyToID:    replyToID,
+		RaidType:     raidType,
+		Count:        -1,
+		TargetUserID: targetUserID,
 	})
 
 	_, _ = m.Delete()
-
-	setRaidActive(m.ChatID())
-
-	defer func() {
-		setRaidStopped(m.ChatID())
-		database.DeleteRaid(m.ChatID())
-	}()
-
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	for i := 0; i < count; i++ {
-
-		if !isRaidActive(m.ChatID()) {
-			break
-		}
-
-		text := raidList[rng.Intn(len(raidList))]
-
-		_, err := m.Client.SendMessage(
-			m.ChatID(),
-			text,
-			&telegram.SendOptions{
-				ReplyID:   replyToID,
-				ParseMode: telegram.HTML,
-			},
-		)
-
-		if err != nil {
-
-			if handleFlood(err) {
-				i--
-				continue
-			}
-
-			time.Sleep(2 * time.Second)
-
-			continue
-		}
-
-		time.Sleep(delay)
-	}
-
+	Reply(m, fmt.Sprintf(
+		"👁 <b>ʀᴇᴘʟʏʀᴀɪᴅ ᴀᴄᴛɪᴠᴇ</b>\n» ᴛᴀʀɢᴇᴛ: <code>%d</code>\n» ᴡᴀɪᴛɪɴɢ ꜰᴏʀ ɴᴇxᴛ ᴍᴇssᴀɢᴇ...",
+		targetUserID,
+	))
 	return nil
 }
 
 // ─────────────────────────────────────────────
-// RESUME RAIDS
+// TriggerReplyRaidIfActive
+// Called by module.go on every incoming message.
+// Fires once when target user sends a message, then stops.
+// ─────────────────────────────────────────────
+
+func TriggerReplyRaidIfActive(m *telegram.NewMessage) {
+	chatID := m.ChatID()
+	senderID := m.SenderID()
+
+	replyRaidWatchersMu.Lock()
+	_, watcherActive := replyRaidWatchers[chatID]
+	replyRaidWatchersMu.Unlock()
+
+	if !watcherActive {
+		return
+	}
+
+	session := database.GetRaid(chatID)
+	if session == nil || session.Count != -1 {
+		replyRaidWatchersMu.Lock()
+		delete(replyRaidWatchers, chatID)
+		replyRaidWatchersMu.Unlock()
+		return
+	}
+
+	if session.TargetUserID == 0 || senderID != session.TargetUserID {
+		return
+	}
+
+	// Stop watcher first to prevent duplicate triggers
+	replyRaidWatchersMu.Lock()
+	if cancel, ok := replyRaidWatchers[chatID]; ok {
+		cancel()
+		delete(replyRaidWatchers, chatID)
+	}
+	replyRaidWatchersMu.Unlock()
+
+	database.DeleteRaid(chatID)
+
+	raidList := getRaidList(session.RaidType)
+	if len(raidList) == 0 {
+		return
+	}
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	text := raidList[rng.Intn(len(raidList))]
+
+	_, err := m.Client.SendMessage(chatID, text, &telegram.SendOptions{
+		ParseMode: telegram.HTML,
+		ReplyID:   int32(m.ID),
+	})
+	if err != nil {
+		handleFlood(err)
+		_, _ = m.Client.SendMessage(chatID, text, &telegram.SendOptions{
+			ParseMode: telegram.HTML,
+			ReplyID:   int32(m.ID),
+		})
+	}
+}
+
+// ─────────────────────────────────────────────
+// ResumeRaids — called on bot startup
+// Normal raids resume; watcher sessions silently restore
 // ─────────────────────────────────────────────
 
 func ResumeRaids(cl *telegram.Client) {
-
 	sessions := database.LoadActiveRaids()
-
 	for _, s := range sessions {
-
 		go func(sess database.RaidSession) {
-
 			raidList := getRaidList(sess.RaidType)
-
 			if len(raidList) == 0 {
 				return
 			}
 
-			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+			if sess.Count == -1 {
+				replyRaidWatchersMu.Lock()
+				replyRaidWatchers[sess.ChatID] = func() {}
+				replyRaidWatchersMu.Unlock()
+				return
+			}
 
+			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 			activeRaidChatsMu.Lock()
 			activeRaidChats[sess.ChatID] = true
 			activeRaidChatsMu.Unlock()
-
 			defer func() {
 				setRaidStopped(sess.ChatID)
 				database.DeleteRaid(sess.ChatID)
 			}()
 
 			for i := 0; i < sess.Count; i++ {
-
 				if !isRaidActive(sess.ChatID) {
 					break
 				}
-
 				text := raidList[rng.Intn(len(raidList))]
-
-				opts := &telegram.SendOptions{
-					ParseMode: telegram.HTML,
-				}
-
-				// FIXED REPLY SUPPORT
-
+				opts := &telegram.SendOptions{ParseMode: telegram.HTML}
 				if sess.ReplyToID > 0 {
 					opts.ReplyID = sess.ReplyToID
 				}
-
-				_, err := cl.SendMessage(
-					sess.ChatID,
-					text,
-					opts,
-				)
-
+				_, err := cl.SendMessage(sess.ChatID, text, opts)
 				if err != nil {
-
 					if handleFlood(err) {
 						i--
 						continue
 					}
-
 					time.Sleep(2 * time.Second)
-
 					continue
 				}
-
 				time.Sleep(800 * time.Millisecond)
 			}
-
 		}(s)
 	}
 }
 
-// ─────────────────────────────────────────────
-// GET RAID LIST
-// ─────────────────────────────────────────────
-
 func getRaidList(raidType string) []string {
-
 	switch raidType {
-
 	case "raid":
 		return config.RAID
-
 	case "hraid":
 		return config.HRAID
-
 	case "eraid":
 		return config.ERAID
-
 	case "punraid":
 		return config.PUNRAID
-
 	default:
 		return config.RAID
 	}
@@ -445,22 +376,19 @@ func getRaidList(raidType string) []string {
 // ─────────────────────────────────────────────
 
 func init() {
-
 	Register(ModuleInfo{
 		Name:        "Raid",
 		Description: "Multi Language Raid Commands",
 		Commands: []CommandInfo{
-			{Pattern: "raid", Handler: raidHandler, Sudo: true},
-			{Pattern: "hraid", Handler: hraidHandler, Sudo: true},
-			{Pattern: "eraid", Handler: eraidHandler, Sudo: true},
-			{Pattern: "punraid", Handler: punraidHandler, Sudo: true},
-
-			{Pattern: "replyraid", Handler: replyRaidHandler, Sudo: true},
+			{Pattern: "raid",       Handler: raidHandler,       Sudo: true},
+			{Pattern: "hraid",      Handler: hraidHandler,      Sudo: true},
+			{Pattern: "eraid",      Handler: eraidHandler,      Sudo: true},
+			{Pattern: "punraid",    Handler: punraidHandler,    Sudo: true},
+			{Pattern: "replyraid",  Handler: replyRaidHandler,  Sudo: true},
 			{Pattern: "hreplyraid", Handler: hreplyRaidHandler, Sudo: true},
 			{Pattern: "ereplyraid", Handler: ereplyRaidHandler, Sudo: true},
 			{Pattern: "preplyraid", Handler: preplyRaidHandler, Sudo: true},
-
-			{Pattern: "stopraid", Handler: stopRaidHandler, Sudo: true},
+			{Pattern: "stopraid",   Handler: stopRaidHandler,   Sudo: true},
 		},
 	})
 }
