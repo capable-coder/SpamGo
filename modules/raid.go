@@ -129,9 +129,9 @@ func handleFlood(err error) bool {
 
 // ─────────────────────────────────────────────
 // Generic Normal Raid
-// FIX: replyToID read from message struct directly (no network call)
-// GetReplyMessage() was returning nil intermittently — this caused
-// all raid messages to send without reply even when replying to a message
+// FIX: GetReplyMessage() called BEFORE m.Delete()
+// Previously it was called after Delete which caused it to return nil,
+// so all messages sent without reply even when command was used as a reply
 // ─────────────────────────────────────────────
 
 func genericRaid(m *telegram.NewMessage, raidList []string, raidType string, delay time.Duration) error {
@@ -143,8 +143,13 @@ func genericRaid(m *telegram.NewMessage, raidList []string, raidType string, del
 		return nil
 	}
 
-	// Read reply ID directly from message struct — no network call needed
-	replyToID := getReplyMsgID(m)
+	// Fetch reply ID BEFORE m.Delete() — after delete, reply context is lost
+	var replyToID int32
+	if m.IsReply() {
+		if replyMsg, err := m.GetReplyMessage(); err == nil && replyMsg != nil {
+			replyToID = int32(replyMsg.ID)
+		}
+	}
 
 	database.SaveRaid(database.RaidSession{
 		ChatID:    m.ChatID(),
@@ -198,20 +203,14 @@ func startReplyRaidWatcher(m *telegram.NewMessage, raidList []string, raidType s
 		return nil
 	}
 
-	// Get target user ID from message struct — no network call
-	replyToID := getReplyMsgID(m)
-	if replyToID == 0 {
-		Reply(m, "❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ʀᴇᴀᴅ ʀᴇᴘʟɪᴇᴅ ᴍᴇssᴀɢᴇ.")
-		return nil
-	}
-
-	// Still need GetReplyMessage here to get senderID of the target
+	// Fetch replied message BEFORE m.Delete() to get both ID and senderID
 	replyMsg, err := m.GetReplyMessage()
 	if err != nil || replyMsg == nil {
 		Reply(m, "❌ ꜰᴀɪʟᴇᴅ ᴛᴏ ɢᴇᴛ ʀᴇᴘʟɪᴇᴅ ᴍᴇssᴀɢᴇ.")
 		return nil
 	}
 
+	replyToID := int32(replyMsg.ID)
 	targetUserID := replyMsg.SenderID()
 	chatID := m.ChatID()
 
