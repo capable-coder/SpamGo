@@ -70,6 +70,7 @@ func Load(c *telegram.Client) {
 
 		// Check reply-raid watcher before parsing any command
 		TriggerReplyRaidIfActive(m)
+		TriggerPReplyRaidIfActive(m)
 
 		text := m.Text()
 		if text == "" {
