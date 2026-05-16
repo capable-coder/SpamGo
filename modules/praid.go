@@ -35,7 +35,7 @@ func pspamHandler(m *telegram.NewMessage) error {
 		extraText = args[idx+1:]
 	}
 
-	// Fetch reply ID before Delete
+	// ✅ FIX: fetch reply ID BEFORE m.Delete()
 	var replyToID int32
 	if m.IsReply() {
 		if replyMsg, err := m.GetReplyMessage(); err == nil && replyMsg != nil {
@@ -63,7 +63,12 @@ func pspamHandler(m *telegram.NewMessage) error {
 		}
 		_, err := m.Client.SendMessage(m.ChatID(), msg, opts)
 		if err != nil {
-			handleFlood(err)
+			if handleFlood(err) {
+				i--
+				continue
+			}
+			time.Sleep(2 * time.Second)
+			continue
 		}
 		time.Sleep(700 * time.Millisecond)
 	}
@@ -82,7 +87,7 @@ func pornVideoSpamHandler(m *telegram.NewMessage) error {
 		count = 5
 	}
 
-	// Fetch reply ID before Delete
+	// ✅ FIX: fetch reply ID BEFORE m.Delete()
 	var replyToID int32
 	if m.IsReply() {
 		if replyMsg, err := m.GetReplyMessage(); err == nil && replyMsg != nil {
@@ -107,7 +112,12 @@ func pornVideoSpamHandler(m *telegram.NewMessage) error {
 		}
 		_, err := m.Client.SendMedia(m.ChatID(), videoURL, opts)
 		if err != nil {
-			handleFlood(err)
+			if handleFlood(err) {
+				i--
+				continue
+			}
+			time.Sleep(3 * time.Second)
+			continue
 		}
 		time.Sleep(1500 * time.Millisecond)
 	}
@@ -116,6 +126,7 @@ func pornVideoSpamHandler(m *telegram.NewMessage) error {
 
 // ─────────────────────────────────────────────
 // .praid — porn text raid
+// ✅ FIX: genericRaid already handles replyToID before Delete
 // ─────────────────────────────────────────────
 
 func praidHandler(m *telegram.NewMessage) error {
