@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🍹 PbxSpamGo
+# 🍹 ᴘʙxsᴘᴀᴍɢᴏ
 
 <p align="center">
 <a href="https://t.me/PBXCHATS">
