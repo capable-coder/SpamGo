@@ -179,40 +179,6 @@ docker run \
   -e BOT_TOKEN1=xxx \
   pbxspamgo
 ```
-
----
-
-### 🚂 Railway
-
-1. Fork this repo on GitHub
-2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
-3. Select your forked repo
-4. Add environment variables in Railway dashboard
-5. Deploy — done ✅
-
----
-
-### 🎨 Render
-
-1. Go to [render.com](https://render.com) → New → Background Worker
-2. Connect your GitHub repo
-3. Set **Build Command:** `go build -o pbxspamgo .`
-4. Set **Start Command:** `./pbxspamgo`
-5. Add environment variables
-6. Deploy ✅
-
----
-
-### 🌐 Koyeb
-
-1. Go to [koyeb.com](https://koyeb.com) → Create App
-2. Select GitHub → your repo
-3. Set **Build command:** `go build -o pbxspamgo .`
-4. Set **Run command:** `./pbxspamgo`
-5. Add env vars → Deploy ✅
-
----
-
 ### ✈️ Fly.io
 
 ```bash
@@ -227,24 +193,36 @@ flyctl launch
 flyctl secrets set APP_ID=xxx APP_HASH=xxx OWNER_ID=xxx BOT_TOKEN1=xxx
 flyctl deploy
 ```
+---
+## 🚀 Deploy Now
+
+<div align="center">
+
+### ☁️ Heroku
+
+[![Deploy on Heroku](https://img.shields.io/badge/Deploy%20On%20Heroku-430098?style=for-the-badge&logo=heroku&logoColor=white)](https://dashboard.heroku.com/new?template=https://github.com/Badmunda05/SpamGo)
 
 ---
 
-### 🟣 Heroku
+### 🟢 Koyeb
 
-```bash
-# Install Heroku CLI
-# https://devcenter.heroku.com/articles/heroku-cli
-
-heroku create pbxspamgo
-heroku buildpacks:set heroku/go
-heroku config:set APP_ID=xxx APP_HASH=xxx OWNER_ID=xxx BOT_TOKEN1=xxx
-git push heroku main
-heroku ps:scale worker=1
-```
+[![Deploy on Koyeb](https://img.shields.io/badge/Deploy%20On%20Koyeb-121212?style=for-the-badge&logo=koyeb&logoColor=white)](https://app.koyeb.com/deploy?type=git&repository=github.com/Badmunda05/SpamGo&branch=main&name=SpamGo)
 
 ---
 
+### 🟣 Render
+
+[![Deploy on Render](https://img.shields.io/badge/Deploy%20On%20Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://render.com/deploy?repo=https://github.com/Badmunda05/SpamGo)
+
+---
+
+### 🔵 Railway
+
+[![Deploy on Railway](https://img.shields.io/badge/Deploy%20On%20Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.app/new/template?template=https://github.com/Badmunda05/SpamGo)
+
+</div>
+
+---
 ## 📁 Project Structure
 
 ```
