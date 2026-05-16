@@ -156,7 +156,7 @@ func praidHandler(m *telegram.NewMessage) error {
 // Target user jdo msg kare: 1 text + 1 video reply vich, fir band
 // ─────────────────────────────────────────────
 
-func preplyRaidHandler(m *telegram.NewMessage) error {
+func pornReplyRaidHandler(m *telegram.NewMessage) error {
 	if !m.IsReply() {
 		Reply(m, "↩️ ʀᴇᴘʟʏ ᴛᴏ ᴛʜᴇ ᴛᴀʀɢᴇᴛ ᴜsᴇʀ's ᴍᴇssᴀɢᴇ ꜰɪʀsᴛ.")
 		return nil
@@ -232,7 +232,7 @@ func init() {
 		Commands: []CommandInfo{
 			{Pattern: "pspam",      Handler: pspamHandler,     Sudo: true},
 			{Pattern: "praid",      Handler: praidHandler,      Sudo: true},
-			{Pattern: "preplyraid", Handler: preplyRaidHandler, Sudo: true},
+			{Pattern: "preplyraid", Handler: pornReplyRaidHandler, Sudo: true},
 		},
 	})
 }
