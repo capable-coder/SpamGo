@@ -18,7 +18,7 @@ import (
 
 /*
 	PbxSpamGo
-	Created By: BadMunda
+	Created By: II_ADI_II
 */
 
 var START_TEXT = `
@@ -27,7 +27,7 @@ var START_TEXT = `
 ɪ ᴀᴍ <b>ᴘʙx sᴘᴀᴍ ɢᴏ</b>
 ━━━━━━━━━━━━━━━━━━━
 
-» <b>ᴅᴇᴠᴇʟᴏᴘᴇʀ :</b> <a href="https://t.me/badnundaxd">ʙᴀᴅ</a>
+» <b>ᴅᴇᴠᴇʟᴏᴘᴇʀ :</b> <a href="https://t.me/II_ADI_II">ᴀᴅɪ</a>
 
 » <b>ᴠᴇʀsɪᴏɴ :</b> <code>2.0.0</code>
 » <b>ʟᴀɴɢᴜᴀɢᴇ :</b> <code>Go</code>
@@ -41,7 +41,7 @@ var HELP_TEXT = `
 ★ ᴘʙxsᴘᴀᴍ ɢᴏ ★
 
 » <b>ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ʙᴜᴛᴛᴏɴs ꜰᴏʀ ʜᴇʟᴘ</b>
-» <b>ᴅᴇᴠᴇʟᴏᴘᴇʀ:</b> @BadmundaXd
+» <b>ᴅᴇᴠᴇʟᴏᴘᴇʀ:</b> @II_ADI_II
 `
 
 var SPAM_TEXT = `
@@ -66,7 +66,7 @@ var SPAM_TEXT = `
 ➜ sᴛᴏᴘ ᴀʟʟ sᴘᴀᴍ
 
 ━━━━━━━━━━━━━━━━━
-© @BadmundaXd
+© @II_ADI_II
 `
 
 var RAID_TEXT = `
@@ -94,7 +94,7 @@ var RAID_TEXT = `
 ➜ sᴛᴏᴘ ᴀʟʟ ʀᴀɪᴅs
 
 ━━━━━━━━━━━━━━━━━
-© @BadmundaXd
+© @II_ADI_II
 `
 
 var EXTRA_TEXT = `
@@ -119,7 +119,7 @@ var EXTRA_TEXT = `
 ➜ ʟɪsᴛ sᴜᴅᴏ ᴜsᴇʀs
 
 ━━━━━━━━━━━━━━━━━
-© @BadmundaXd
+© @II_ADI_II
 `
 
 // ─────────────────────────────────────────────
@@ -134,7 +134,6 @@ func startKeyboard() *telegram.ReplyInlineMarkup {
 				telegram.Button.URL("• ᴄʜᴀɴɴᴇʟ •", "https://t.me/PBX_UPDATE"),
 				telegram.Button.URL("• sᴜᴘᴘᴏʀᴛ •", "https://t.me/PBXCHATS"),
 			}},
-			{Buttons: []telegram.KeyboardButton{telegram.Button.URL("• ʀᴇᴘᴏ •", "https://github.com/badmunda05")}},
 		},
 	}
 }
@@ -330,99 +329,5 @@ func rmSudoHandler(m *telegram.NewMessage) error {
 		}
 		parsed, err := strconv.ParseInt(strings.TrimSpace(args), 10, 64)
 		if err != nil {
-			_, _ = Reply(m, "❌ ɪɴᴠᴀʟɪᴅ ᴜsᴇʀ ɪᴅ.")
-			return nil
-		}
-		targetID = parsed
-	}
-	if targetID == config.AppConfig.OwnerID {
-		_, _ = Reply(m, "❌ ᴄᴀɴɴᴏᴛ ʀᴇᴍᴏᴠᴇ ᴏᴡɴᴇʀ ꜰʀᴏᴍ sᴜᴅᴏ.")
-		return nil
-	}
-	database.RemoveSudo(targetID)
-	_, _ = Reply(m, fmt.Sprintf("✅ <b>ᴜsᴇʀ <code>%d</code> ʀᴇᴍᴏᴠᴇᴅ ꜰʀᴏᴍ sᴜᴅᴏ ʟɪsᴛ.</b>", targetID))
-	return nil
-}
+			_, _ = Reply(m, "❌ ɪɴᴠᴀʟɪ
 
-// ─────────────────────────────────────────────
-// .sudolist
-// ─────────────────────────────────────────────
-
-func sudoListHandler(m *telegram.NewMessage) error {
-	list := database.FetchSudoList()
-	if len(list) == 0 {
-		_, _ = Reply(m, "ℹ️ <b>ɴᴏ sᴜᴅᴏ ᴜsᴇʀs ᴀᴅᴅᴇᴅ ʏᴇᴛ.</b>")
-		return nil
-	}
-	text := "👑 <b>sᴜᴅᴏ ᴜsᴇʀs ʟɪsᴛ:</b>\n\n"
-	for i, uid := range list {
-		text += fmt.Sprintf("%d. <code>%d</code>\n", i+1, uid)
-	}
-	text += fmt.Sprintf("\n<b>ᴛᴏᴛᴀʟ:</b> <code>%d</code>", len(list))
-	_, _ = Reply(m, text)
-	return nil
-}
-
-// ─────────────────────────────────────────────
-// CALLBACKS
-// ─────────────────────────────────────────────
-
-func callbackHandler(c *telegram.CallbackQuery) error {
-	data := c.DataString()
-	switch data {
-	case "help_back":
-		c.Edit(HELP_TEXT, &telegram.SendOptions{ParseMode: telegram.HTML, ReplyMarkup: helpKeyboard()})
-		c.Answer("")
-	case "spam_help":
-		c.Edit(SPAM_TEXT, &telegram.SendOptions{ParseMode: telegram.HTML, ReplyMarkup: homeKeyboard()})
-		c.Answer("")
-	case "raid_help":
-		c.Edit(RAID_TEXT, &telegram.SendOptions{ParseMode: telegram.HTML, ReplyMarkup: homeKeyboard()})
-		c.Answer("")
-	case "extra_help":
-		c.Edit(EXTRA_TEXT, &telegram.SendOptions{ParseMode: telegram.HTML, ReplyMarkup: homeKeyboard()})
-		c.Answer("")
-	case "back_help":
-		c.Edit(HELP_TEXT, &telegram.SendOptions{ParseMode: telegram.HTML, ReplyMarkup: helpKeyboard()})
-		c.Answer("")
-	case "go_home":
-		sender, _ := c.GetSender()
-		name := "ᴜsᴇʀ"
-		id := c.SenderID
-		if sender != nil {
-			name = sender.FirstName
-		}
-		c.Edit(fmt.Sprintf(START_TEXT, id, name), &telegram.SendOptions{ParseMode: telegram.HTML, ReplyMarkup: startKeyboard()})
-		c.Answer("")
-	}
-	return nil
-}
-
-// ─────────────────────────────────────────────
-// REGISTER
-// ─────────────────────────────────────────────
-
-func init() {
-	Register(ModuleInfo{
-		Name:        "Basic",
-		Description: "Start Help Ping Restart Logs Sudo",
-		Commands: []CommandInfo{
-			{Pattern: "start",    Handler: startHandler,    Sudo: false},
-			{Pattern: "help",     Handler: helpHandler,     Sudo: false},
-			{Pattern: "ping",     Handler: pingHandler,     Sudo: true},
-			{Pattern: "restart",  Handler: restartHandler,  Sudo: true},
-			{Pattern: "logs",     Handler: logsHandler,     Sudo: true},
-			{Pattern: "addsudo",  Handler: addSudoHandler,  Sudo: false},
-			{Pattern: "rmsudo",   Handler: rmSudoHandler,   Sudo: false},
-			{Pattern: "sudolist", Handler: sudoListHandler, Sudo: true},
-		},
-		Callbacks: []CallbackInfo{
-			{Pattern: "help_back",  Handler: callbackHandler},
-			{Pattern: "spam_help",  Handler: callbackHandler},
-			{Pattern: "raid_help",  Handler: callbackHandler},
-			{Pattern: "extra_help", Handler: callbackHandler},
-			{Pattern: "back_help",  Handler: callbackHandler},
-			{Pattern: "go_home",    Handler: callbackHandler},
-		},
-	})
-}
